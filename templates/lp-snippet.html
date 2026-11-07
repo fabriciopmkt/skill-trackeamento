@@ -1,0 +1,228 @@
+<!--
+  Bloco de trackeamento para colar numa LP que ja existe.
+
+  São três partes:
+    A) no <head>: pixel do Meta e tag do GA4
+    B) no <head>, depois do pixel: PageView com event_id compartilhado
+    C) antes de </body>: envio no submit do formulário (e o trk, se houver
+       checkout externo)
+
+  Troque: SEU_PIXEL_ID, G-XXXXXXXXXX e o seletor do formulário.
+  Nada de segredo aqui: o id do pixel e o id de medição do GA4 são públicos
+  por natureza. Token e api_secret ficam só nas variáveis de ambiente.
+-->
+
+<!-- ========================================================================
+     A) <head>: GA4 e pixel do Meta
+     ======================================================================== -->
+
+<!-- GA4: a tag da página cuida de page_view e comportamento.
+     Conversão vai pelo servidor, pelo /tracker. -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){ dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', 'G-XXXXXXXXXX');
+</script>
+
+<!-- Pixel do Meta -->
+<script>
+  !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+  n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;
+  n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;
+  t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,
+  document,'script','https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', 'SEU_PIXEL_ID');
+</script>
+<noscript><img height="1" width="1" style="display:none"
+  src="https://www.facebook.com/tr?id=SEU_PIXEL_ID&ev=PageView&noscript=1" alt=""></noscript>
+
+<!-- ========================================================================
+     B) PageView com event_id compartilhado
+
+     O mesmo id vai no pixel e no servidor. Sem isso, cada evento conta duas
+     vezes e o custo por resultado aparece pela metade.
+     ======================================================================== -->
+<script>
+(function () {
+  var idEvento = (crypto.randomUUID && crypto.randomUUID()) ||
+    String(Date.now()) + '-' + Math.random().toString(36).slice(2);
+
+  fbq('track', 'PageView', {}, { eventID: idEvento });
+
+  // keepalive para o envio sobreviver a quem sai da página na mesma hora.
+  fetch('/tracker', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    keepalive: true,
+    body: JSON.stringify({
+      event_name: 'PageView',
+      event_id: idEvento,
+      event_time: Math.floor(Date.now() / 1000),
+      event_source_url: window.location.href,
+      user_data: {
+        fbp: lerCookie('_fbp'),
+        fbc: lerCookie('_fbc'),
+        ga_client_id: clientIdGA4()
+      }
+    })
+  }).catch(function () { /* bloqueador derrubou o fetch: o cookie do
+       servidor já garantiu a identidade, o evento é que se perde */ });
+
+  function lerCookie(nome) {
+    var m = document.cookie.match('(^|;)\\s*' + nome + '\\s*=\\s*([^;]+)');
+    return m ? m.pop() : '';
+  }
+  function clientIdGA4() {
+    var ga = lerCookie('_ga');            // GA1.1.<id>.<ts>
+    if (!ga) return '';
+    var p = ga.split('.');
+    return p.length >= 4 ? p[2] + '.' + p[3] : '';
+  }
+  window.__trkLerCookie = lerCookie;
+  window.__trkClientIdGA4 = clientIdGA4;
+})();
+</script>
+
+<!-- ========================================================================
+     C) antes de </body>: envio no submit
+
+     Troque o seletor do formulário e os nomes dos campos.
+     ======================================================================== -->
+<script>
+(function () {
+  var form = document.querySelector('#formulario-lead');
+  if (!form) return;
+
+  form.addEventListener('submit', async function (ev) {
+    ev.preventDefault();
+
+    var botao = form.querySelector('[type=submit]');
+    if (botao) { botao.disabled = true; botao.dataset.textoAntigo = botao.textContent; botao.textContent = 'Enviando...'; }
+
+    var nomeCompleto = (form.querySelector('[name=nome]')?.value || '').trim();
+    var email = (form.querySelector('[name=email]')?.value || '').trim();
+    var telefone = (form.querySelector('[name=telefone]')?.value || '').trim();
+
+    var idEvento = (crypto.randomUUID && crypto.randomUUID()) ||
+      String(Date.now()) + '-' + Math.random().toString(36).slice(2);
+
+    // 1) Pixel do navegador, com o id compartilhado.
+    try { fbq('track', 'Lead', {}, { eventID: idEvento }); } catch (e) {}
+
+    // 2) Servidor: esta é a ponta autoritativa. Ela faz o hash do dado
+    //    pessoal (nunca mande hash feito no navegador: o algoritmo tem que
+    //    ficar num lugar só) e dispara Meta CAPI e GA4.
+    try {
+      await fetch('/tracker', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        keepalive: true,
+        body: JSON.stringify({
+          event_name: 'Lead',
+          event_id: idEvento,
+          event_time: Math.floor(Date.now() / 1000),
+          event_source_url: window.location.href,
+          // Preencha com o estado real do consentimento da sua página.
+          consent_status: 'concedido',
+          user_data: {
+            em: email,
+            ph: telefone,
+            fn: nomeCompleto.split(' ')[0] || '',
+            ln: nomeCompleto.split(' ').slice(1).join(' ') || '',
+            fbp: window.__trkLerCookie('_fbp'),
+            fbc: window.__trkLerCookie('_fbc'),
+            ga_client_id: window.__trkClientIdGA4()
+          }
+        })
+      });
+    } catch (e) { /* o tracking não pode travar o lead */ }
+
+    // 3) Só depois, entregue o lead para onde ele vai de verdade
+    //    (seu endpoint, CRM, automação). Esta é a chamada que não pode
+    //    falhar em silêncio: trate o erro e avise a pessoa.
+    try {
+      var r = await fetch('/lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: nomeCompleto, email: email, telefone: telefone })
+      });
+      if (!r.ok) throw new Error('falha ao enviar');
+      window.location.href = '/obrigado';
+    } catch (e) {
+      if (botao) { botao.disabled = false; botao.textContent = botao.dataset.textoAntigo || 'Enviar'; }
+      alert('Não conseguimos enviar seus dados. Tente de novo em instantes.');
+    }
+  });
+})();
+</script>
+
+<!-- ========================================================================
+     D) só para página de venda com checkout externo
+
+     Gera o trk, grava a atribuição e carimba o trk no link do checkout.
+     Troque NOME_DO_CAMPO pelo parâmetro da sua plataforma (xcod, sck,
+     tracker.code1...). Ver references/checkout-externo.md.
+     ======================================================================== -->
+<script>
+(function () {
+  var links = document.querySelectorAll('a[data-checkout]');
+  if (!links.length) return;
+
+  var trk = (crypto.randomUUID && crypto.randomUUID()) ||
+    String(Date.now()) + '-' + Math.random().toString(36).slice(2);
+
+  var q = new URLSearchParams(window.location.search);
+
+  // Congela a atribuição ligada a este trk, antes de a pessoa sair.
+  fetch('/checkout-session', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    keepalive: true,
+    body: JSON.stringify({
+      trk: trk,
+      event_source_url: window.location.href,
+      ga_client_id: window.__trkClientIdGA4(),
+      utm_source: q.get('utm_source') || '',
+      utm_medium: q.get('utm_medium') || '',
+      utm_campaign: q.get('utm_campaign') || '',
+      utm_content: q.get('utm_content') || '',
+      utm_term: q.get('utm_term') || ''
+    })
+  }).catch(function () {});
+
+  // Carimba o trk em todo link de checkout.
+  links.forEach(function (a) {
+    try {
+      var u = new URL(a.href);
+      u.searchParams.set('NOME_DO_CAMPO', trk);
+      a.href = u.toString();
+    } catch (e) {}
+  });
+
+  // InitiateCheckout no clique, com id compartilhado.
+  links.forEach(function (a) {
+    a.addEventListener('click', function () {
+      var idEvento = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now());
+      try { fbq('track', 'InitiateCheckout', {}, { eventID: idEvento }); } catch (e) {}
+      fetch('/tracker', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        keepalive: true,
+        body: JSON.stringify({
+          event_name: 'InitiateCheckout',
+          event_id: idEvento,
+          event_time: Math.floor(Date.now() / 1000),
+          event_source_url: window.location.href,
+          user_data: {
+            fbp: window.__trkLerCookie('_fbp'),
+            fbc: window.__trkLerCookie('_fbc'),
+            ga_client_id: window.__trkClientIdGA4()
+          }
+        })
+      }).catch(function () {});
+    });
+  });
+})();
+</script>

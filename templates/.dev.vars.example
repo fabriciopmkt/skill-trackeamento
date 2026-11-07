@@ -1,0 +1,84 @@
+# Variáveis de ambiente do trackeamento.
+#
+# Local: copie para `.dev.vars` (já está no .gitignore) e rode
+#   npx wrangler pages dev .
+#
+# Produção: cole cada uma em Cloudflare > Pages > seu projeto >
+#   Settings > Environment variables, marcando "Encrypt" em tudo que é
+#   token, secret ou senha. Nunca em arquivo dentro da pasta publicada:
+#   o deploy da Pages publica a pasta inteira, sem filtro.
+
+# ---------------------------------------------------------------------------
+# Meta
+# ---------------------------------------------------------------------------
+# Events Manager > sua fonte de dados > o id numérico no topo.
+META_PIXEL_ID=
+
+# Events Manager > Configurações > Conversions API > Gerar token de acesso.
+# Token de sistema, não token de usuário: token de usuário expira.
+META_ACCESS_TOKEN=
+
+# Só durante o teste. Events Manager > Testar eventos > copie o código.
+# TIRE DEPOIS: evento com este código não conta para otimização.
+# META_TEST_EVENT_CODE=
+
+# ---------------------------------------------------------------------------
+# GA4
+# ---------------------------------------------------------------------------
+# Administrador > Fluxos de dados > o id que começa com G-
+GA4_MEASUREMENT_ID=
+
+# Administrador > Fluxos de dados > seu fluxo > Protocolo de medição > Criar.
+# É segredo: nunca no HTML.
+GA4_API_SECRET=
+
+# ---------------------------------------------------------------------------
+# Google (OAuth criado no Google Cloud)
+# ---------------------------------------------------------------------------
+# Ver references/google-cloud.md. Atenção ao app em modo "Em teste":
+# o refresh token expira em 7 dias. Publique o app.
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+GOOGLE_REFRESH_TOKEN=
+
+# Conta de anúncio dona da ação de conversão, só dígitos, sem hífen.
+GOOGLE_ADS_CUSTOMER_ID=
+
+# Conta administradora (MCC) pela qual o usuário do OAuth acessa.
+# Deixe vazio se a conta não está sob um MCC.
+GOOGLE_ADS_LOGIN_CUSTOMER_ID=
+
+# Ação de conversão padrão (compra). Id numérico.
+GOOGLE_ADS_CONVERSION_ACTION_ID=
+
+# Uma ação por evento de fundo de funil. Ver EVENTOS em
+# functions/api/conversao-crm.js.
+GOOGLE_ACAO_LEAD_QUALIFICADO=
+GOOGLE_ACAO_REUNIAO=
+GOOGLE_ACAO_CONTRATO=
+
+# Só se você usa o uploadClickConversions antigo da API do Google Ads.
+# A Data Manager API não usa developer token.
+# GOOGLE_ADS_DEVELOPER_TOKEN=
+
+# ---------------------------------------------------------------------------
+# Senhas dos endpoints: uma por função, nunca o mesmo valor
+# ---------------------------------------------------------------------------
+# UUID v4 que vai no caminho do webhook de compra.
+# Gere com: node -e "console.log(crypto.randomUUID())"
+WEBHOOK_SLUG=
+
+# Senha do endpoint que o CRM chama (cabeçalho x-crm-secret).
+CRM_SECRET=
+
+# ---------------------------------------------------------------------------
+# Padrões regionais
+# ---------------------------------------------------------------------------
+# Código do país prefixado em telefone de formato local antes do hash.
+DEFAULT_COUNTRY_CODE=55
+
+# Fuso da conta de anúncio, formato ISO. Usado no horário da conversão do
+# Google: fuso errado joga a conversão para antes do clique e ela é recusada.
+TIMEZONE_OFFSET=-03:00
+
+DEFAULT_CURRENCY=BRL

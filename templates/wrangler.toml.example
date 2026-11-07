@@ -1,0 +1,30 @@
+# Copie para `wrangler.toml` (que está no .gitignore) e preencha.
+#
+# Criar o banco:
+#   npx wrangler d1 create NOME-DO-BANCO
+# O comando imprime o database_id. Cole abaixo.
+#
+# Aplicar o schema:
+#   npx wrangler d1 execute NOME-DO-BANCO --remote --file ./schema.sql
+#
+# Publicar:
+#   npx wrangler pages deploy . --project-name=NOME-DO-PROJETO
+#
+# ATENÇÃO: o deploy publica a pasta inteira, sem filtro de arquivo.
+# Qualquer arquivo aqui fica acessível em https://seu-dominio/<caminho>.
+# Bloqueie o que não é público com regra 301 no _redirects e nunca deixe
+# segredo em arquivo dentro desta pasta.
+
+name = "NOME-DO-PROJETO"
+compatibility_date = "2026-01-01"
+pages_build_output_dir = "."
+
+# O binding tem que se chamar DB: é o nome que o código usa.
+[[d1_databases]]
+binding = "DB"
+database_name = "NOME-DO-BANCO"
+database_id = "cole-o-id-aqui"
+
+# Variáveis NÃO vão aqui. Em desenvolvimento ficam em .dev.vars; em produção
+# ficam no painel da Cloudflare, marcadas como Encrypt. Variável neste
+# arquivo vira texto puro em quem clonar o repositório.

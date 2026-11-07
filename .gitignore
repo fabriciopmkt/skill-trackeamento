@@ -1,0 +1,15 @@
+# Segredo nunca entra no repo
+.dev.vars
+.env
+.env.*
+wrangler.toml
+*.refresh-token
+*.key
+*.pem
+
+# Lixo de build e de editor
+node_modules/
+.wrangler/
+dist/
+.DS_Store
+Thumbs.db
