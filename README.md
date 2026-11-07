@@ -19,7 +19,7 @@ Tudo roda em Cloudflare Pages Functions + D1. Sem GTM server-side, sem container
 ## Instalar
 
 ```bash
-git clone https://github.com/SEU-USUARIO/skill-trackeamento ~/.claude/skills/trackeamento-conversoes
+git clone https://github.com/fabriciopmkt/skill-trackeamento ~/.claude/skills/trackeamento-conversoes
 ```
 
 Reabra o Claude Code e peça algo como "instala o pixel e a API de conversões nessa LP". A skill é acionada pela descrição, sem comando.
